@@ -1,48 +1,68 @@
 """
-Database Schemas
+Database Schemas for Sportex
 
-Define your MongoDB collection schemas here using Pydantic models.
-These schemas are used for data validation in your application.
-
-Each Pydantic model represents a collection in your database.
-Model name is converted to lowercase for the collection name:
-- User -> "user" collection
-- Product -> "product" collection
-- BlogPost -> "blogs" collection
+Each Pydantic model corresponds to a MongoDB collection.
+Collection name = lowercase class name.
 """
+from typing import List, Optional, Literal
+from pydantic import BaseModel, Field, EmailStr
+from datetime import datetime
 
-from pydantic import BaseModel, Field
-from typing import Optional
-
-# Example schemas (replace with your own):
-
+# Core users and roles
 class User(BaseModel):
-    """
-    Users collection schema
-    Collection name: "user" (lowercase of class name)
-    """
-    name: str = Field(..., description="Full name")
-    email: str = Field(..., description="Email address")
-    address: str = Field(..., description="Address")
-    age: Optional[int] = Field(None, ge=0, le=120, description="Age in years")
-    is_active: bool = Field(True, description="Whether user is active")
+    email: EmailStr
+    password_hash: str
+    name: str
+    role: Literal["athlete", "coach", "organizer", "admin", "guest"] = "athlete"
+    avatar_url: Optional[str] = None
+    location: Optional[str] = None
+    is_active: bool = True
+    privacy: Literal["public", "limited", "private"] = "public"
 
-class Product(BaseModel):
-    """
-    Products collection schema
-    Collection name: "product" (lowercase of class name)
-    """
-    title: str = Field(..., description="Product title")
-    description: Optional[str] = Field(None, description="Product description")
-    price: float = Field(..., ge=0, description="Price in dollars")
-    category: str = Field(..., description="Product category")
-    in_stock: bool = Field(True, description="Whether product is in stock")
+class Athleteprofile(BaseModel):
+    user_id: str
+    sport: str
+    position: Optional[str] = None
+    bio: Optional[str] = None
+    height_cm: Optional[int] = None
+    weight_kg: Optional[int] = None
+    stats: dict = Field(default_factory=dict, description="Key-value stats like ppg, apg")
+    achievements: List[str] = Field(default_factory=list)
+    media: List[dict] = Field(default_factory=list, description="List of {type, url, thumb}")
+    recent_performance: List[dict] = Field(default_factory=list, description="[{date, metric, value}]")
 
-# Add your own schemas here:
-# --------------------------------------------------
+class Team(BaseModel):
+    name: str
+    coach_user_id: str
+    sport: str
+    location: Optional[str] = None
+    roster_user_ids: List[str] = Field(default_factory=list)
 
-# Note: The Flames database viewer will automatically:
-# 1. Read these schemas from GET /schema endpoint
-# 2. Use them for document validation when creating/editing
-# 3. Handle all database operations (CRUD) directly
-# 4. You don't need to create any database endpoints!
+class Event(BaseModel):
+    title: str
+    sport: str
+    description: Optional[str] = None
+    location: str
+    starts_at: datetime
+    ends_at: datetime
+    capacity: int = 100
+    organizer_user_id: str
+
+class Registration(BaseModel):
+    event_id: str
+    user_id: str
+    status: Literal["pending", "confirmed", "waitlisted", "cancelled"] = "pending"
+
+class Notification(BaseModel):
+    user_id: str
+    type: Literal["invite", "event_update", "system"] = "system"
+    title: str
+    body: str
+    read: bool = False
+
+# Minimal moderation record
+class Moderation(BaseModel):
+    target_type: Literal["user", "athleteprofile", "team", "event"]
+    target_id: str
+    action: Literal["approve", "reject", "flag", "suspend"]
+    reason: Optional[str] = None
